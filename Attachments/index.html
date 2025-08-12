@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Password Protected Checklist with Achievements</title>
+<style>
+  body {
+    font-family: Arial, sans-serif;
+    margin: 20px;
+  }
+  .tab {
+    display: inline-block;
+    margin-right: 10px;
+    padding: 10px;
+    background: #ddd;
+    cursor: pointer;
+  }
+  .tab.active {
+    background: #bbb;
+  }
+  .hidden {
+    display: none;
+  }
+  ul {
+    list-style-type: none;
+    padding: 0;
+  }
+  li {
+    margin: 5px 0;
+  }
+  .star {
+    font-size: 2em;
+    margin: 5px;
+    cursor: default;
+  }
+  #breakButtons button {
+    margin-right: 10px;
+  }
+  #timer {
+    margin-top: 10px;
+    font-weight: bold;
+  }
+  .message {
+    margin-top: 10px;
+    font-weight: bold;
+  }
+</style>
+</head>
+<body>
+
+<h1>Checklist Game</h1>
+
+<div>
+  <div id="checklistTab" class="tab active" onclick="switchTab('checklist')">Checklist</div>
+  <div id="achievementsTab" class="tab" onclick="switchTab('achievements')">Achievements</div>
+</div>
+
+<div id="checklistView">
+  <input type="password" id="passwordInput" placeholder="Enter password to unlock">
+  <button onclick="unlockChecklist()">Unlock</button>
+  <ul id="checklist">
+    <li><input type="checkbox" disabled> Task 1</li>
+    <li><input type="checkbox" disabled> Task 2</li>
+    <li><input type="checkbox" disabled> Task 3</li>
+  </ul>
+  <div id="breakButtons">
+    <button onclick="startBreak(15)">Short Break (15 min)</button>
+    <button onclick="startBreak(30)">Lunch Break (30 min)</button>
+  </div>
+  <div id="timer"></div>
+  <div id="message" class="message"></div>
+</div>
+
+<div id="achievementsView" class="hidden">
+  <h2>Achievements</h2>
+  <div id="starsContainer"></div>
+</div>
+
+<audio id="starSound" src="https://actions.google.com/sounds/v1/cartoon/clang_and_wobble.ogg"></audio>
+<audio id="loseSound" src="https://actions.google.com/sounds/v1/cartoon/wood_plank_flicks.ogg"></audio>
+
+<script>
+  const PASSWORD = "1234"; // change password here
+  let checklist = document.querySelectorAll("#checklist input[type=checkbox]");
+  let breakCount = 0;
+  let today = new Date().toDateString();
+  let starHistory = JSON.parse(localStorage.getItem("starHistory") || "[]");
+  let breakData = JSON.parse(localStorage.getItem("breakData") || "{}");
+
+  function switchTab(tab) {
+    document.getElementById("checklistView").classList.toggle("hidden", tab !== 'checklist');
+    document.getElementById("achievementsView").classList.toggle("hidden", tab !== 'achievements');
+    document.getElementById("checklistTab").classList.toggle("active", tab === 'checklist');
+    document.getElementById("achievementsTab").classList.toggle("active", tab === 'achievements');
+    if (tab === 'achievements') renderStars();
+  }
+
+  function unlockChecklist() {
+    let pass = document.getElementById("passwordInput").value;
+    if (pass === PASSWORD) {
+      checklist.forEach(cb => cb.disabled = false);
+    } else {
+      alert("Wrong password!");
+    }
+  }
+
+  checklist.forEach(cb => cb.addEventListener("change", checkCompletion));
+
+  function checkCompletion() {
+    if ([...checklist].every(cb => cb.checked)) {
+      let lastEntry = starHistory[starHistory.length - 1];
+      if (!lastEntry || lastEntry.date !== today) {
+        starHistory.push({ date: today });
+        localStorage.setItem("starHistory", JSON.stringify(starHistory));
+        document.getElementById("message").textContent = "⭐ Star earned!";
+        document.getElementById("starSound").play();
+      }
+    }
+  }
+
+  function renderStars() {
+    let container = document.getElementById("starsContainer");
+    container.innerHTML = "";
+    starHistory.forEach(s => {
+      let star = document.createElement("span");
+      star.textContent = "⭐";
+      star.title = s.date;
+      star.className = "star";
+      container.appendChild(star);
+    });
+  }
+
+  function startBreak(minutes) {
+    if (breakData.date !== today) {
+      breakData = { date: today, count: 0 };
+    }
+    breakData.count++;
+    localStorage.setItem("breakData", JSON.stringify(breakData));
+
+    if (breakData.count > 3 && starHistory.length > 0) {
+      starHistory.pop();
+      localStorage.setItem("starHistory", JSON.stringify(starHistory));
+      document.getElementById("message").textContent = "❌ Too many breaks! You lost a star.";
+      document.getElementById("loseSound").play();
+    }
+
+    let remaining = minutes * 60;
+    let timer = document.getElementById("timer");
+    let interval = setInterval(() => {
+      let min = Math.floor(remaining / 60);
+      let sec = remaining % 60;
+      timer.textContent = `Break time: ${min}:${sec.toString().padStart(2, '0')}`;
+      if (--remaining < 0) {
+        clearInterval(interval);
+        timer.textContent = "Break over!";
+      }
+    }, 1000);
+  }
+
+  // Reset break count daily
+  if (breakData.date !== today) {
+    breakData = { date: today, count: 0 };
+    localStorage.setItem("breakData", JSON.stringify(breakData));
+  }
+
+  renderStars();
+</script>
+
+</body>
+</html>
