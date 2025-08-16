@@ -1,170 +1,671 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<title>Password Protected Checklist with Achievements</title>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Kid's Gamified Checklist — Password Protected</title>
 <style>
-  body {
-    font-family: Arial, sans-serif;
-    margin: 20px;
+  :root{
+    --bg:#f6f8fb; --card:#fff; --accent:#2563eb; --muted:#6b7280; --danger:#ef4444;
+    --gold:#f5c542;
   }
-  .tab {
-    display: inline-block;
-    margin-right: 10px;
-    padding: 10px;
-    background: #ddd;
-    cursor: pointer;
-  }
-  .tab.active {
-    background: #bbb;
-  }
-  .hidden {
-    display: none;
-  }
-  ul {
-    list-style-type: none;
-    padding: 0;
-  }
-  li {
-    margin: 5px 0;
-  }
-  .star {
-    font-size: 2em;
-    margin: 5px;
-    cursor: default;
-  }
-  #breakButtons button {
-    margin-right: 10px;
-  }
-  #timer {
-    margin-top: 10px;
-    font-weight: bold;
-  }
-  .message {
-    margin-top: 10px;
-    font-weight: bold;
-  }
+  body{ margin:0; font-family:Inter,system-ui,Segoe UI,Roboto,"Helvetica Neue",Arial; background:var(--bg); color:#111; }
+  .wrap{ max-width:980px; margin:28px auto; padding:18px; }
+  header{ display:flex; gap:12px; align-items:center; justify-content:space-between; }
+  .brand{ display:flex; gap:12px; align-items:center; }
+  h1{ margin:0; font-size:20px; }
+  .tabs{ display:flex; gap:6px; }
+  .tab{ padding:8px 12px; border-radius:10px; cursor:pointer; border:1px solid transparent; background:transparent; color:var(--muted); }
+  .tab.active{ background:var(--card); border-color:rgba(0,0,0,0.06); color:var(--accent); font-weight:700; }
+  .card{ background:var(--card); padding:16px; border-radius:12px; box-shadow:0 6px 18px rgba(15,23,42,0.06); margin-top:14px; }
+  .controls{ display:flex; gap:8px; align-items:center; }
+  button{ border:0; background:var(--accent); color:white; padding:8px 12px; border-radius:8px; cursor:pointer; font-weight:600; }
+  .secondary{ background:transparent; color:var(--accent); border:1px solid rgba(37,99,235,0.12); font-weight:600; }
+  .small{ padding:6px 8px; font-size:13px; }
+  .muted{ color:var(--muted); font-size:13px; }
+  .list{ margin-top:12px; display:flex; flex-direction:column; gap:8px; }
+  .item{ display:flex; gap:10px; align-items:center; padding:8px; border-radius:8px; }
+  .item .text{ min-width:0; flex:1; outline:none; }
+  .text[contenteditable="true"]{ border:1px dashed rgba(0,0,0,0.06); padding:6px; border-radius:6px; }
+  .remove{ background:#fee2e2; color:var(--danger); border-radius:6px; padding:6px 8px; border:0; cursor:pointer; }
+  .footer{ margin-top:14px; display:flex; justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap; }
+  .hidden{ display:none !important; }
+  .status{ font-size:13px; color:var(--muted); }
+  .achievements-row{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; padding:8px 0; }
+  .star{ font-size:28px; cursor:default; user-select:none; }
+  .star.lost{ opacity:0.15; filter:grayscale(100%); }
+  .break-controls{ display:flex; gap:8px; margin-top:12px; align-items:center; flex-wrap:wrap; }
+  .timer{ font-weight:700; font-size:16px; }
+  .notice{ margin-top:8px; color:var(--muted); font-size:13px; }
+  .danger{ color:var(--danger); font-weight:700; }
+  .center{ text-align:center; }
+  .achieve-empty{ color:var(--muted); padding:10px 0; }
+  .pill{ background:#f3f4f6; padding:6px 8px; border-radius:999px; font-size:13px; }
+  .controls-right{ display:flex; gap:8px; align-items:center; }
+  @media (max-width:640px){ .brand h1{ font-size:16px } }
 </style>
 </head>
 <body>
+  <div class="wrap">
+    <header>
+      <div class="brand">
+        <h1>Kid's Gamified Checklist</h1>
+        <div class="muted">Editing locked until unlocked with password</div>
+      </div>
+      <div class="controls-right">
+        <div class="tabs" role="tablist">
+          <button id="tabChecklist" class="tab active" role="tab">Checklist</button>
+          <button id="tabAchievements" class="tab" role="tab">Achievements</button>
+        </div>
+        <div class="controls">
+          <button id="lockBtn" class="secondary small">Locked</button>
+          <button id="setPwBtn" class="secondary small">Set/Change Password</button>
+        </div>
+      </div>
+    </header>
 
-<h1>Checklist Game</h1>
+    <!-- CHECKLIST CARD -->
+    <main id="viewChecklist" class="card">
+      <div style="display:flex; gap:8px; align-items:center;">
+        <input id="newItemInput" placeholder="Add a new item..." style="flex:1; padding:10px; border-radius:8px; border:1px solid #e6e9ef;">
+        <button id="addBtn">Add</button>
+      </div>
 
-<div>
-  <div id="checklistTab" class="tab active" onclick="switchTab('checklist')">Checklist</div>
-  <div id="achievementsTab" class="tab" onclick="switchTab('achievements')">Achievements</div>
-</div>
+      <div class="list" id="list"></div>
 
-<div id="checklistView">
-  <input type="password" id="passwordInput" placeholder="Enter password to unlock">
-  <button onclick="unlockChecklist()">Unlock</button>
-  <ul id="checklist">
-    <li><input type="checkbox" disabled> Task 1</li>
-    <li><input type="checkbox" disabled> Task 2</li>
-    <li><input type="checkbox" disabled> Task 3</li>
-  </ul>
-  <div id="breakButtons">
-    <button onclick="startBreak(15)">Short Break (15 min)</button>
-    <button onclick="startBreak(30)">Lunch Break (30 min)</button>
+      <div class="break-controls">
+        <div>
+          <button id="shortBreakBtn" class="small secondary">Short Break (15 min)</button>
+          <button id="lunchBreakBtn" class="small secondary">Lunch Break (30 min)</button>
+        </div>
+        <div id="breakInfo" class="muted">No active break</div>
+        <div style="margin-left:auto">
+          <div class="pill">Today's breaks: <span id="todayBreakCount">0</span></div>
+        </div>
+      </div>
+
+      <div class="footer">
+        <div class="status">Status: <strong id="lockedState">Locked</strong></div>
+        <div class="muted">Stored locally in your browser. (<span id="itemCount">0</span> items)</div>
+      </div>
+
+      <div id="starBanner" class="center hidden" style="margin-top:12px;">
+        <div style="font-size:20px; color:var(--gold)">⭐ You earned a star today! Great job!</div>
+      </div>
+
+      <div id="lostBanner" class="center hidden" style="margin-top:10px;">
+        <div style="font-size:18px; color:var(--danger)">😢 You lost a star due to too many breaks today.</div>
+      </div>
+
+      <div class="notice">Rules: Complete all checklist items to earn a star for the day. More than 3 breaks in one day will remove the most recent star.</div>
+    </main>
+
+    <!-- ACHIEVEMENTS CARD (viewable even when locked) -->
+    <main id="viewAchievements" class="card hidden">
+      <h2 style="margin:0 0 8px 0">Achievements</h2>
+      <div class="achievements-row" id="achieveRow">
+        <!-- Stars will be inserted here -->
+      </div>
+      <div id="achieveEmpty" class="achieve-empty">No stars yet. Finish all tasks in a day to earn your first star!</div>
+      <div style="margin-top:10px;" class="muted">Tip: Hover or tap a star to see the date it was earned.</div>
+    </main>
   </div>
-  <div id="timer"></div>
-  <div id="message" class="message"></div>
-</div>
 
-<div id="achievementsView" class="hidden">
-  <h2>Achievements</h2>
-  <div id="starsContainer"></div>
-</div>
-
-<audio id="starSound" src="https://actions.google.com/sounds/v1/cartoon/clang_and_wobble.ogg"></audio>
-<audio id="loseSound" src="https://actions.google.com/sounds/v1/cartoon/wood_plank_flicks.ogg"></audio>
+  <!-- Password modal -->
+  <div id="pwModal" class="hidden" style="position:fixed; inset:0; display:flex; align-items:center; justify-content:center; background:rgba(0,0,0,0.45); z-index:50;">
+    <div style="background:white; padding:16px; border-radius:12px; width:340px; box-shadow:0 10px 30px rgba(0,0,0,0.25);">
+      <h3 id="modalTitle">Enter password</h3>
+      <div style="margin-top:8px;">
+        <input id="pwInput" type="password" placeholder="Password" style="width:100%; padding:8px; border-radius:8px; border:1px solid #e6e9ef;">
+        <input id="pwInputConfirm" type="password" placeholder="Confirm password" class="hidden" style="width:100%; padding:8px; border-radius:8px; border:1px solid #e6e9ef; margin-top:8px;">
+      </div>
+      <div style="display:flex; gap:8px; justify-content:flex-end; margin-top:12px;">
+        <button id="pwCancel" class="secondary small">Cancel</button>
+        <button id="pwOk" class="small">OK</button>
+      </div>
+      <div id="modalMsg" class="muted" style="margin-top:8px;"></div>
+    </div>
+  </div>
 
 <script>
-  const PASSWORD = "1234"; // change password here
-  let checklist = document.querySelectorAll("#checklist input[type=checkbox]");
-  let breakCount = 0;
-  let today = new Date().toDateString();
-  let starHistory = JSON.parse(localStorage.getItem("starHistory") || "[]");
-  let breakData = JSON.parse(localStorage.getItem("breakData") || "{}");
+/*
+  Gamified Checklist
+  - LocalStorage keys:
+     ITEMS_KEY -> items array
+     PWHASH_KEY -> password hash
+     STAR_HISTORY_KEY -> array of dates (YYYY-MM-DD) representing earned stars (oldest -> newest)
+     BREAKS_KEY -> array of break objects { date: 'YYYY-MM-DD', type:'short'|'lunch', durationSec, tsStart, tsEnd }
+  - Break rules:
+     short: 15 min max
+     lunch: 30 min max
+     If today's break count > 3 -> remove last star (if any) and show penalty
+*/
 
-  function switchTab(tab) {
-    document.getElementById("checklistView").classList.toggle("hidden", tab !== 'checklist');
-    document.getElementById("achievementsView").classList.toggle("hidden", tab !== 'achievements');
-    document.getElementById("checklistTab").classList.toggle("active", tab === 'checklist');
-    document.getElementById("achievementsTab").classList.toggle("active", tab === 'achievements');
-    if (tab === 'achievements') renderStars();
-  }
+const ITEMS_KEY = 'kid_checklist_items_v1';
+const PWHASH_KEY = 'kid_checklist_pwhash_v1';
+const STAR_HISTORY_KEY = 'kid_checklist_star_history_v1';
+const BREAKS_KEY = 'kid_checklist_breaks_v1';
 
-  function unlockChecklist() {
-    let pass = document.getElementById("passwordInput").value;
-    if (pass === PASSWORD) {
-      checklist.forEach(cb => cb.disabled = false);
-    } else {
-      alert("Wrong password!");
-    }
-  }
+const SHORT_BREAK_SEC = 15 * 60; // 15 min
+const LUNCH_BREAK_SEC = 30 * 60; // 30 min
+const BREAK_LIMIT_PER_DAY = 3; // >3 triggers penalty (so 4th breaks removes star)
 
-  checklist.forEach(cb => cb.addEventListener("change", checkCompletion));
+let isUnlocked = false;
+let items = [];
+let starHistory = []; // array of YYYY-MM-DD strings
+let breaks = []; // array of {date, type, durationSec, tsStart, tsEnd}
 
-  function checkCompletion() {
-    if ([...checklist].every(cb => cb.checked)) {
-      let lastEntry = starHistory[starHistory.length - 1];
-      if (!lastEntry || lastEntry.date !== today) {
-        starHistory.push({ date: today });
-        localStorage.setItem("starHistory", JSON.stringify(starHistory));
-        document.getElementById("message").textContent = "⭐ Star earned!";
-        document.getElementById("starSound").play();
-      }
-    }
-  }
+let activeBreak = null; // {type, startTs, maxSec, timerId}
 
-  function renderStars() {
-    let container = document.getElementById("starsContainer");
-    container.innerHTML = "";
-    starHistory.forEach(s => {
-      let star = document.createElement("span");
-      star.textContent = "⭐";
-      star.title = s.date;
-      star.className = "star";
-      container.appendChild(star);
+const tabChecklist = document.getElementById('tabChecklist');
+const tabAchievements = document.getElementById('tabAchievements');
+const viewChecklist = document.getElementById('viewChecklist');
+const viewAchievements = document.getElementById('viewAchievements');
+
+const listEl = document.getElementById('list');
+const addBtn = document.getElementById('addBtn');
+const newItemInput = document.getElementById('newItemInput');
+const lockBtn = document.getElementById('lockBtn');
+const setPwBtn = document.getElementById('setPwBtn');
+const statusEl = document.getElementById('lockedState');
+const itemCountEl = document.getElementById('itemCount');
+const starBanner = document.getElementById('starBanner');
+const lostBanner = document.getElementById('lostBanner');
+
+const achieveRow = document.getElementById('achieveRow');
+const achieveEmpty = document.getElementById('achieveEmpty');
+
+const shortBreakBtn = document.getElementById('shortBreakBtn');
+const lunchBreakBtn = document.getElementById('lunchBreakBtn');
+const breakInfo = document.getElementById('breakInfo');
+const todayBreakCountEl = document.getElementById('todayBreakCount');
+
+const pwModal = document.getElementById('pwModal');
+const pwInput = document.getElementById('pwInput');
+const pwInputConfirm = document.getElementById('pwInputConfirm');
+const pwOk = document.getElementById('pwOk');
+const pwCancel = document.getElementById('pwCancel');
+const modalTitle = document.getElementById('modalTitle');
+const modalMsg = document.getElementById('modalMsg');
+
+function todayISO(){ return new Date().toISOString().slice(0,10); }
+
+/* ---- localStorage helpers ---- */
+function saveItems(){ localStorage.setItem(ITEMS_KEY, JSON.stringify(items)); }
+function loadItems(){
+  try{ items = JSON.parse(localStorage.getItem(ITEMS_KEY)) || []; }catch(e){ items = []; }
+}
+function loadStarHistory(){
+  try{ starHistory = JSON.parse(localStorage.getItem(STAR_HISTORY_KEY)) || []; }catch(e){ starHistory = []; }
+}
+function saveStarHistory(){ localStorage.setItem(STAR_HISTORY_KEY, JSON.stringify(starHistory)); }
+
+function loadBreaks(){
+  try{ breaks = JSON.parse(localStorage.getItem(BREAKS_KEY)) || []; }catch(e){ breaks = []; }
+}
+function saveBreaks(){ localStorage.setItem(BREAKS_KEY, JSON.stringify(breaks)); }
+
+function hasPassword(){ return !!localStorage.getItem(PWHASH_KEY); }
+
+/* WebCrypto SHA-256 -> hex */
+async function hashTextHex(text){
+  const enc = new TextEncoder();
+  const data = enc.encode(text);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+  return Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2,'0')).join('');
+}
+async function verifyPassword(plain){
+  const stored = localStorage.getItem(PWHASH_KEY);
+  if(!stored) return false;
+  return stored === await hashTextHex(plain);
+}
+async function setPassword(plain){
+  localStorage.setItem(PWHASH_KEY, await hashTextHex(plain));
+}
+
+/* ---- audio (WebAudio simple beeps) ---- */
+const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+function playSound(type){
+  // type: 'win' = ascending joyful tones, 'lose' = low sad tone, 'tick' = short click
+  const now = audioCtx.currentTime;
+  if(type === 'win'){
+    const freqs = [880, 1100, 1320];
+    freqs.forEach((f,i)=>{
+      const o = audioCtx.createOscillator();
+      const g = audioCtx.createGain();
+      o.type = 'sine';
+      o.frequency.value = f;
+      g.gain.value = 0.0001;
+      o.connect(g); g.connect(audioCtx.destination);
+      o.start(now + i*0.08);
+      g.gain.linearRampToValueAtTime(0.12, now + i*0.08 + 0.01);
+      g.gain.linearRampToValueAtTime(0.0001, now + i*0.08 + 0.35);
+      o.stop(now + i*0.08 + 0.36);
     });
+  } else if(type === 'lose'){
+    const o = audioCtx.createOscillator();
+    const g = audioCtx.createGain();
+    o.type = 'sine';
+    o.frequency.value = 220;
+    g.gain.value = 0.0001;
+    o.connect(g); g.connect(audioCtx.destination);
+    o.start(now);
+    g.gain.linearRampToValueAtTime(0.15, now + 0.02);
+    g.gain.linearRampToValueAtTime(0.0001, now + 0.8);
+    o.stop(now + 0.82);
+  } else if(type === 'tick'){
+    const o = audioCtx.createOscillator();
+    const g = audioCtx.createGain();
+    o.type = 'square';
+    o.frequency.value = 1500;
+    g.gain.value = 0.0001;
+    o.connect(g); g.connect(audioCtx.destination);
+    o.start(now);
+    g.gain.linearRampToValueAtTime(0.06, now + 0.001);
+    g.gain.linearRampToValueAtTime(0.0001, now + 0.06);
+    o.stop(now + 0.061);
   }
+}
 
-  function startBreak(minutes) {
-    if (breakData.date !== today) {
-      breakData = { date: today, count: 0 };
+/* ---- UI rendering ---- */
+function generateId(){ return 'i_'+Math.random().toString(36).slice(2,9); }
+
+function render(){
+  // items list
+  listEl.innerHTML = '';
+  items.forEach(item => {
+    const row = document.createElement('div');
+    row.className = 'item';
+
+    const cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.checked = !!item.checked;
+    cb.disabled = !isUnlocked;
+    cb.addEventListener('change', ()=>{
+      item.checked = cb.checked;
+      saveItems();
+      updateCount();
+      checkStarLogic();
+    });
+
+    const text = document.createElement('div');
+    text.className = 'text';
+    text.textContent = item.text || '';
+    text.setAttribute('role','textbox');
+    text.setAttribute('tabindex','0');
+    if(isUnlocked){
+      text.contentEditable = 'true';
+      text.addEventListener('input', ()=> {
+        item.text = text.textContent.trim();
+        saveItems();
+      });
+    } else {
+      text.contentEditable = 'false';
     }
-    breakData.count++;
-    localStorage.setItem("breakData", JSON.stringify(breakData));
 
-    if (breakData.count > 3 && starHistory.length > 0) {
-      starHistory.pop();
-      localStorage.setItem("starHistory", JSON.stringify(starHistory));
-      document.getElementById("message").textContent = "❌ Too many breaks! You lost a star.";
-      document.getElementById("loseSound").play();
+    const remove = document.createElement('button');
+    remove.textContent = 'Delete';
+    remove.className = 'remove small';
+    remove.disabled = !isUnlocked;
+    remove.addEventListener('click', ()=>{
+      items = items.filter(it => it.id !== item.id);
+      saveItems();
+      render();
+      updateCount();
+      checkStarLogic();
+    });
+
+    row.appendChild(cb);
+    row.appendChild(text);
+    row.appendChild(remove);
+    listEl.appendChild(row);
+  });
+
+  updateCount();
+  renderAchievements();
+  updateBreakCountDisplay();
+}
+
+function updateCount(){ itemCountEl.textContent = items.length; }
+
+function updateUIState(){
+  statusEl.textContent = isUnlocked ? 'Unlocked' : 'Locked';
+  lockBtn.textContent = isUnlocked ? 'Lock' : 'Locked';
+  lockBtn.classList.toggle('secondary', !isUnlocked);
+  newItemInput.disabled = !isUnlocked;
+  addBtn.disabled = !isUnlocked;
+  render();
+}
+
+/* ---- Achievements rendering ---- */
+function renderAchievements(){
+  achieveRow.innerHTML = '';
+  loadStarHistory();
+  if(starHistory.length === 0){
+    achieveEmpty.classList.remove('hidden');
+    return;
+  }
+  achieveEmpty.classList.add('hidden');
+
+  // show stars oldest -> newest (left->right)
+  starHistory.forEach((d, idx) => {
+    const span = document.createElement('span');
+    span.className = 'star';
+    span.innerText = '⭐';
+    span.title = d; // hover tooltip
+    // add data-index so we can optionally remove on click (not required)
+    span.dataset.date = d;
+    achieveRow.appendChild(span);
+  });
+}
+
+/* ---- Star reward logic ---- */
+function checkStarLogic(){
+  // If there are items, and every item is checked, and today's star not already earned -> award
+  loadStarHistory();
+  const today = todayISO();
+  const allDone = items.length > 0 && items.every(it => it.checked);
+  if(allDone){
+    if(!starHistory.includes(today)){
+      // award star
+      starHistory.push(today);
+      saveStarHistory();
+      showStarEarned();
     }
+  }
+  renderAchievements();
+}
 
-    let remaining = minutes * 60;
-    let timer = document.getElementById("timer");
-    let interval = setInterval(() => {
-      let min = Math.floor(remaining / 60);
-      let sec = remaining % 60;
-      timer.textContent = `Break time: ${min}:${sec.toString().padStart(2, '0')}`;
-      if (--remaining < 0) {
-        clearInterval(interval);
-        timer.textContent = "Break over!";
-      }
-    }, 1000);
+function showStarEarned(){
+  starBanner.classList.remove('hidden');
+  lostBanner.classList.add('hidden');
+  playSound('win');
+  setTimeout(()=> starBanner.classList.add('hidden'), 3800);
+}
+
+/* ---- Break logic ---- */
+function getTodayBreaks(){
+  const today = todayISO();
+  return breaks.filter(b => b.date === today);
+}
+function updateBreakCountDisplay(){
+  const c = getTodayBreaks().length;
+  todayBreakCountEl.textContent = c;
+}
+
+function startBreak(type){
+  if(activeBreak) return; // already on break
+  const maxSec = (type === 'short') ? SHORT_BREAK_SEC : LUNCH_BREAK_SEC;
+  activeBreak = {
+    type,
+    startTs: Date.now(),
+    maxSec,
+    elapsedSec: 0,
+    timerId: null
+  };
+  updateBreakUI();
+  // countdown every second and auto-end at maxSec
+  activeBreak.timerId = setInterval(() => {
+    activeBreak.elapsedSec = Math.floor((Date.now() - activeBreak.startTs)/1000);
+    updateBreakUI();
+    if(activeBreak.elapsedSec >= activeBreak.maxSec){
+      endBreak(true); // auto-end due to reaching max
+    }
+  }, 1000);
+  playSound('tick');
+}
+
+function endBreak(autoEnded=false){
+  if(!activeBreak) return;
+  clearInterval(activeBreak.timerId);
+  const endTs = Date.now();
+  const durationSec = Math.min(Math.floor((endTs - activeBreak.startTs)/1000), activeBreak.maxSec);
+  const br = {
+    date: todayISO(),
+    type: activeBreak.type,
+    durationSec,
+    tsStart: activeBreak.startTs,
+    tsEnd: endTs
+  };
+  breaks.push(br);
+  saveBreaks();
+  const todayCount = getTodayBreaks().length;
+  updateBreakCountDisplay();
+  activeBreak = null;
+  updateBreakUI();
+
+  // If count > BREAK_LIMIT_PER_DAY => penalty
+  if(todayCount > BREAK_LIMIT_PER_DAY){
+    // remove last earned star (most recent)
+    loadStarHistory();
+    if(starHistory.length > 0){
+      const removed = starHistory.pop();
+      saveStarHistory();
+      renderAchievements();
+      showStarLost(removed);
+    } else {
+      // no star to remove but show a warning
+      lostBanner.classList.remove('hidden');
+      lostBanner.innerText = 'Too many breaks today! But no stars to remove yet.';
+      playSound('lose');
+      setTimeout(()=> lostBanner.classList.add('hidden'), 3500);
+    }
+  } else {
+    // normal small ack
+    playSound('tick');
+  }
+}
+
+function cancelBreak(){
+  if(!activeBreak) return;
+  clearInterval(activeBreak.timerId);
+  activeBreak = null;
+  updateBreakUI();
+  playSound('tick');
+}
+
+function updateBreakUI(){
+  if(activeBreak){
+    const rem = Math.max(0, activeBreak.maxSec - activeBreak.elapsedSec);
+    const mm = String(Math.floor(rem/60)).padStart(2,'0');
+    const ss = String(rem % 60).padStart(2,'0');
+    breakInfo.textContent = `On ${activeBreak.type === 'short' ? 'Short' : 'Lunch'} break — ${mm}:${ss} remaining`;
+    shortBreakBtn.disabled = true;
+    lunchBreakBtn.disabled = true;
+    // show an "End Break" button if not present
+    if(!document.getElementById('endBreakBtn')){
+      const endBtn = document.createElement('button');
+      endBtn.id = 'endBreakBtn';
+      endBtn.className = 'small secondary';
+      endBtn.textContent = 'End Break';
+      endBtn.addEventListener('click', ()=> endBreak(false));
+      shortBreakBtn.parentNode.insertBefore(endBtn, shortBreakBtn.nextSibling);
+    }
+  } else {
+    breakInfo.textContent = 'No active break';
+    shortBreakBtn.disabled = false;
+    lunchBreakBtn.disabled = false;
+    const endBtn = document.getElementById('endBreakBtn');
+    if(endBtn) endBtn.remove();
+  }
+}
+
+/* Show star lost */
+function showStarLost(removedDate){
+  lostBanner.classList.remove('hidden');
+  lostBanner.innerHTML = `😢 Star from ${removedDate} was removed due to too many breaks.`;
+  playSound('lose');
+  setTimeout(()=> lostBanner.classList.add('hidden'), 5000);
+}
+
+/* ---- Event wiring ---- */
+addBtn.addEventListener('click', ()=>{
+  const txt = newItemInput.value.trim();
+  if(!txt) return;
+  items.push({ id: generateId(), text: txt, checked:false });
+  newItemInput.value = '';
+  saveItems();
+  render();
+});
+
+newItemInput.addEventListener('keydown', (e)=>{
+  if(e.key === 'Enter'){ e.preventDefault(); addBtn.click(); }
+});
+
+shortBreakBtn.addEventListener('click', ()=> {
+  // start short break but confirm with simple prompt to avoid accidental clicks
+  if(activeBreak) return;
+  startBreak('short');
+});
+
+lunchBreakBtn.addEventListener('click', ()=> {
+  if(activeBreak) return;
+  startBreak('lunch');
+});
+
+tabChecklist.addEventListener('click', ()=> {
+  tabChecklist.classList.add('active');
+  tabAchievements.classList.remove('active');
+  viewChecklist.classList.remove('hidden');
+  viewAchievements.classList.add('hidden');
+});
+tabAchievements.addEventListener('click', ()=> {
+  tabChecklist.classList.remove('active');
+  tabAchievements.classList.add('active');
+  viewChecklist.classList.add('hidden');
+  viewAchievements.classList.remove('hidden');
+  // achievements visible regardless of lock state
+});
+
+/* Password modal flows */
+lockBtn.addEventListener('click', async ()=>{
+  if(isUnlocked){
+    isUnlocked = false;
+    updateUIState();
+  } else {
+    await openPasswordModal({mode:'enter'});
+  }
+});
+
+setPwBtn.addEventListener('click', async ()=>{
+  if(!hasPassword()){
+    await openPasswordModal({mode:'set'});
+  } else {
+    await openPasswordModal({mode:'change'});
+  }
+});
+
+pwCancel.addEventListener('click', ()=> {
+  closePwModal();
+});
+
+async function openPasswordModal({mode}){
+  modalMsg.innerText = '';
+  pwInput.value = '';
+  pwInputConfirm.value = '';
+  pwInputConfirm.classList.add('hidden');
+
+  if(mode === 'enter'){
+    modalTitle.innerText = 'Enter password to unlock';
+    pwInput.placeholder = 'Password';
+    pwOk.onclick = async ()=>{
+      const v = pwInput.value;
+      if(!v){ modalMsg.innerText = 'Please enter password.'; return; }
+      if(await verifyPassword(v)){
+        isUnlocked = true;
+        updateUIState();
+        closePwModal();
+      } else modalMsg.innerText = 'Incorrect password.';
+    };
+  } else if(mode === 'set'){
+    modalTitle.innerText = 'Set a new password';
+    pwInput.placeholder = 'New password';
+    pwInputConfirm.placeholder = 'Confirm new password';
+    pwInputConfirm.classList.remove('hidden');
+    pwOk.onclick = async ()=>{
+      const v = pwInput.value;
+      const c = pwInputConfirm.value;
+      if(!v || !c){ modalMsg.innerText = 'Please fill both fields.'; return; }
+      if(v !== c){ modalMsg.innerText = 'Passwords do not match.'; return; }
+      await setPassword(v);
+      isUnlocked = true;
+      updateUIState();
+      closePwModal();
+    };
+  } else if(mode === 'change'){
+    modalTitle.innerText = 'Change password — enter current password';
+    pwInput.placeholder = 'Current password';
+    pwOk.onclick = async ()=>{
+      const v = pwInput.value;
+      if(!v){ modalMsg.innerText = 'Please enter current password.'; return; }
+      if(await verifyPassword(v)){
+        // show new password fields
+        modalTitle.innerText = 'Enter new password';
+        pwInput.value = '';
+        pwInput.placeholder = 'New password';
+        pwInputConfirm.classList.remove('hidden');
+        pwInputConfirm.value = '';
+        pwOk.onclick = async ()=>{
+          const n = pwInput.value;
+          const c = pwInputConfirm.value;
+          if(!n || !c){ modalMsg.innerText = 'Enter and confirm new password.'; return; }
+          if(n !== c){ modalMsg.innerText = 'Passwords do not match.'; return; }
+          await setPassword(n);
+          isUnlocked = true;
+          updateUIState();
+          closePwModal();
+        };
+      } else modalMsg.innerText = 'Current password incorrect.';
+    };
   }
 
-  // Reset break count daily
-  if (breakData.date !== today) {
-    breakData = { date: today, count: 0 };
-    localStorage.setItem("breakData", JSON.stringify(breakData));
-  }
+  pwModal.classList.remove('hidden');
+  pwInput.focus();
+}
 
-  renderStars();
+function closePwModal(){
+  pwModal.classList.add('hidden');
+  pwOk.onclick = null;
+}
+
+/* ---- Initialization and daily housekeeping ---- */
+function loadAll(){
+  loadItems();
+  loadStarHistory();
+  loadBreaks();
+  // daily housekeeping: nothing to delete for stars
+}
+
+function dailyResetIfNeeded(){
+  // We don't delete breaks or stars across days, but break count display is by date. Nothing to do here except render.
+}
+
+function boot(){
+  loadAll();
+  dailyResetIfNeeded();
+  render();
+  updateUIState();
+  // If no password set, prompt to set (small delay)
+  if(!hasPassword()){
+    setTimeout(()=> openPasswordModal({mode:'set'}), 350);
+  }
+}
+
+boot();
+
+/* ---- Utility: remove last star manually (admin) - hidden behind ctrl+click star area for debugging (optional) ---- */
+achieveRow.addEventListener('dblclick', ()=>{
+  // double-clicking achievements removes the last star (careful)
+  if(!confirm('Remove most recent star?')) return;
+  loadStarHistory();
+  if(starHistory.length>0){ const r = starHistory.pop(); saveStarHistory(); renderAchievements(); alert('Removed star from '+r); }
+});
+
+/* Make sure timers stop if page hidden/unloaded */
+window.addEventListener('beforeunload', ()=>{
+  if(activeBreak && activeBreak.timerId) clearInterval(activeBreak.timerId);
+});
 </script>
-
 </body>
 </html>
+
